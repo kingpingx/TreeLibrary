@@ -2,7 +2,7 @@
 
 **A virtual tree for Angular that stays fast at 100,000 nodes.**
 
-### ▶ [Open the live demo](https://claude.ai/code/artifact/2a360068-1175-40f4-b48c-b569f1f7c2cd)
+### ▶ [Open the live demo](https://kingpingx.github.io/TreeLibrary/)
 
 The live build is the app in [projects/of-demo/](projects/of-demo/) — 100,000 real nodes, lazy-loaded
 branches, and a side-by-side comparison of client-side vs server-side search. Scroll it, search it,
@@ -283,6 +283,23 @@ npm run build:demo   # build the demo into dist/of-demo
 npm test             # unit tests (Karma + Jasmine, headless Chrome)
 npm run lint         # ESLint
 ```
+
+### Deployment
+
+The demo at [kingpingx.github.io/TreeLibrary](https://kingpingx.github.io/TreeLibrary/) redeploys on
+every push to `main`, via [.github/workflows/deploy-demo.yml](.github/workflows/deploy-demo.yml).
+It publishes through the official Pages actions, so there is no `gh-pages` branch to maintain.
+
+The one thing to know if you fork or rename: Pages serves from a subdirectory, so the build needs a
+matching base href or the page loads a blank `<app-root>`. The workflow reads it from the repository
+name, so a rename cannot silently break it:
+
+```yaml
+npx ng build of-demo --base-href "/${{ github.event.repository.name }}/"
+```
+
+Building that locally on Windows, use PowerShell or `MSYS_NO_PATHCONV=1` — Git Bash rewrites
+`/TreeLibrary/` into a filesystem path.
 
 ### Using it in your app
 
