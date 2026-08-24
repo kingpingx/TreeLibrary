@@ -1,3 +1,76 @@
+<!--
+    Build your own data set. The tree takes whatever shape you describe, so the same component
+    can be pushed at a wide-and-shallow tree, a deep-and-narrow one, or one huge level.
+-->
+<details class="builder" open>
+    <summary>Build a tree</summary>
+
+    <div class="builder-body">
+        <div class="levels">
+            @for (count of levels(); track $index) {
+                <label class="level">
+                    <span class="level-name">Level {{ $index + 1 }}</span>
+                    <input
+                        type="number"
+                        min="0"
+                        [max]="maxLevelWidth"
+                        [value]="count"
+                        (input)="setLevelCount($index, $any($event.target).value)"
+                    />
+                    <span class="level-note">
+                        {{ $index === 0 ? 'root nodes' : 'per parent' }}
+                        @if (levelTotals()[$index]; as total) {
+                            &middot; {{ total.toLocaleString() }} node{{ total === 1 ? '' : 's' }}
+                        }
+                    </span>
+                </label>
+            }
+
+            <span class="level-buttons">
+                <button type="button" (click)="addLevel()" [disabled]="levels().length >= maxLevels">+ Level</button>
+                <button type="button" (click)="removeLevel()" [disabled]="levels().length <= 1">&minus; Level</button>
+            </span>
+        </div>
+
+        <div class="builder-actions">
+            <label class="lazy">
+                Lazy-load every
+                <input type="number" min="0" max="50" [value]="lazyEvery()" (input)="lazyEvery.set(+$any($event.target).value)" />
+                th branch
+            </label>
+
+            <span class="plan" [class.over]="planTooBig()">
+                @if (planTooBig()) {
+                    Too big &mdash; {{ maxGeneratedNodes.toLocaleString() }} nodes is the limit
+                } @else {
+                    = {{ plannedNodes().toLocaleString() }} nodes
+                }
+            </span>
+
+            <button type="button" class="primary" (click)="generate()" [disabled]="planTooBig() || generating()">
+                {{ generating() ? 'Building…' : 'Generate tree' }}
+            </button>
+            <button type="button" (click)="restoreSample()">Restore sample</button>
+        </div>
+
+        <div class="builder-actions">
+            <label class="manual">
+                Name
+                <input
+                    type="text"
+                    placeholder="new node"
+                    [value]="newNodeName()"
+                    (input)="newNodeName.set($any($event.target).value)"
+                />
+            </label>
+            <button type="button" (click)="addRootNode()">+ Add root node</button>
+            <span class="hint">…or hover any row and use its <strong>+</strong> button to add a child.</span>
+        </div>
+
+        <p class="dataset">Showing: <strong>{{ datasetLabel() }}</strong></p>
+    </div>
+</details>
+
 <div class="toolbar">
     <button type="button" (click)="expandAll()">Expand all</button>
     <button type="button" (click)="collapseAll()">Collapse all</button>
@@ -35,7 +108,7 @@
             }
         </span>
     } @else {
-        <span class="hint">{{ lazyServerCount }} servers hold {{ hiddenNodes.toLocaleString() }} nodes the client has not loaded</span>
+        <span class="hint">{{ lazyServerCount() }} branch{{ lazyServerCount() === 1 ? '' : 'es' }} hold {{ hiddenNodes().toLocaleString() }} nodes the client has not loaded</span>
     }
 </div>
 
@@ -63,6 +136,9 @@
                 -->
                 <app-node-toggle [on]="isEnabled(node.item)" (toggled)="setEnabled(node.item, $event)"></app-node-toggle>
 
+                <button class="row-action" title="Add a child node" (click)="addChildNode(node); $event.stopPropagation()">
+                    &#43;
+                </button>
                 <button class="row-action" title="Show details" (click)="showInfo(node); $event.stopPropagation()">&#9432;</button>
                 <button class="row-action" title="Copy resource id" (click)="copyId(node.item); $event.stopPropagation()">
                     &#128203;
@@ -80,7 +156,7 @@
     <p class="stats action-log">{{ a }}</p>
 }
 <p class="stats">
-    <strong>{{ totalNodes.toLocaleString() }}</strong> nodes &middot;
+    <strong>{{ totalNodes().toLocaleString() }}</strong> nodes &middot;
     <strong>{{ visibleRows().toLocaleString() }}</strong> rows visible &middot;
     <strong>{{ checkedCount().toLocaleString() }}</strong> checked
 </p>

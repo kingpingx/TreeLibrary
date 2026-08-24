@@ -4,7 +4,16 @@ import { FormsModule } from '@angular/forms';
 import { Node, I2vTree, I2vTreeComponent } from 'i2v-tree';
 
 import { TreeDataModel, createTreeData, loadedDescendants } from './tree-data';
-import { matches } from './tree-backend';
+import { TreeBackend, matches } from './tree-backend';
+import {
+    DEFAULT_LEVELS,
+    MAX_GENERATED_NODES,
+    MAX_LEVELS,
+    MAX_LEVEL_WIDTH,
+    buildCustomTree,
+    createManualNode,
+    projectedNodeCount
+} from './tree-builder';
 import { TreeNodeComponent } from './tree-node.component';
 import { NodeToggleComponent } from './node-toggle.component';
 
@@ -28,10 +37,25 @@ export type SearchMode = 'client' | 'server';
 export class ServerTreeDemoComponent {
     public readonly itemHeight = 28;
 
-    private readonly backend = createTreeData();
-    public readonly totalNodes = this.backend.totalNodes;
-    public readonly hiddenNodes = this.backend.hiddenNodes;
-    public readonly lazyServerCount = this.backend.lazyServers.length;
+    /**
+     * Swapped wholesale when a tree is generated, so it is a field rather than a constant. The
+     * `I2vTree` above it is not swapped -- `model.load()` re-reads the roots in place, which keeps
+     * the component's subscriptions and the `[model]` binding intact.
+     */
+    private backend: TreeBackend = createTreeData();
+
+    /**
+     * Bumped whenever the data set is replaced. The three counters below read it so they
+     * recompute against the new backend; nothing else depends on its value.
+     */
+    private readonly dataset = signal(0);
+
+    public readonly totalNodes = computed(() => (this.dataset(), this.backend.totalNodes));
+    public readonly hiddenNodes = computed(() => (this.dataset(), this.backend.hiddenNodes));
+    public readonly lazyServerCount = computed(() => (this.dataset(), this.backend.lazyServers.length));
+
+    /** What the tree is currently showing, for the line under the builder panel. */
+    public readonly datasetLabel = signal('Sample payload, scaled to 100,000 nodes');
 
     public readonly selected = signal<TreeDataModel | undefined>(undefined);
     /** Feedback from the row action buttons. */
@@ -65,9 +89,155 @@ export class ServerTreeDemoComponent {
         lazyLoad: true
     });
 
+    // --- Tree builder ---------------------------------------------------------------------
+    //
+    // A plan is one node count per level: [3, 5, 10] is three roots, five children under each,
+    // ten under each of those. The panel edits the plan, previews what it costs, and only then
+    // generates -- so an accidental [500, 500, 500] is reported rather than run.
+
+    public readonly maxLevels = MAX_LEVELS;
+    public readonly maxLevelWidth = MAX_LEVEL_WIDTH;
+    public readonly maxGeneratedNodes = MAX_GENERATED_NODES;
+
+    public readonly levels = signal<number[]>([...DEFAULT_LEVELS]);
+    /** 0 turns lazy loading off; N keeps every Nth branch on the "server" until it is opened. */
+    public readonly lazyEvery = signal(0);
+    public readonly generating = signal(false);
+
+    public readonly plannedNodes = computed(() => projectedNodeCount(this.levels()));
+    public readonly planTooBig = computed(() => this.plannedNodes() > MAX_GENERATED_NODES);
+    /** Per-level running totals, so the panel can show where the growth actually happens. */
+    public readonly levelTotals = computed(() => {
+        const totals: number[] = [];
+        let perParent = 1;
+        for (const count of this.levels()) {
+            perParent = Math.min(perParent * Math.max(0, Math.floor(count)), Number.MAX_SAFE_INTEGER);
+            totals.push(perParent);
+        }
+        return totals;
+    });
+
+    /** Name applied to the next hand-added node. Blank falls back to a generated one. */
+    public readonly newNodeName = signal('');
+    private manualSeq = 0;
+
     constructor() {
         this.model.load(this.backend.nodes);
         this.model.onDataInvalidated.pipe(takeUntilDestroyed()).subscribe(() => this.revision.update(n => n + 1));
+    }
+
+    public setLevelCount(index: number, value: number | string) {
+        const count = Math.max(0, Math.min(Math.floor(Number(value) || 0), MAX_LEVEL_WIDTH));
+        this.levels.update(prev => prev.map((existing, at) => (at === index ? count : existing)));
+    }
+
+    public addLevel() {
+        this.levels.update(prev => (prev.length >= MAX_LEVELS ? prev : [...prev, 2]));
+    }
+
+    public removeLevel() {
+        this.levels.update(prev => (prev.length <= 1 ? prev : prev.slice(0, -1)));
+    }
+
+    /**
+     * Replace the tree with one built to the current plan.
+     *
+     * Generation is synchronous and can allocate hundreds of thousands of objects, so the busy
+     * flag is set and the work deferred a frame -- otherwise the button never visibly changes
+     * state, because the paint and the freeze happen in the same task.
+     */
+    public generate() {
+        if (this.planTooBig() || this.generating()) {
+            return;
+        }
+
+        this.generating.set(true);
+        setTimeout(() => {
+            const levels = this.levels();
+            try {
+                this.replaceData(
+                    buildCustomTree(levels, { lazyEvery: this.lazyEvery() }),
+                    `Generated: ${levels.join(' × ')} over ${levels.length} level${levels.length === 1 ? '' : 's'}`
+                );
+                this.lastAction.set(`Built ${this.totalNodes().toLocaleString()} nodes from ${levels.join(' × ')}`);
+            } finally {
+                this.generating.set(false);
+            }
+        });
+    }
+
+    /** Back to the payload the demo ships with. */
+    public restoreSample() {
+        this.replaceData(createTreeData(), 'Sample payload, scaled to 100,000 nodes');
+        this.lastAction.set('Restored the sample payload');
+    }
+
+    /**
+     * Point everything at a new backend. Search, selection and check state all describe nodes
+     * that no longer exist, so all of it is cleared rather than carried across.
+     */
+    private replaceData(backend: TreeBackend, label: string) {
+        clearTimeout(this.searchTimer);
+        this.searchToken++;
+
+        this.backend = backend;
+        this.model.setFilter(undefined);
+        this.model.load(backend.nodes);
+        this.model.collapseAll();
+
+        this.selected.set(undefined);
+        this.checkedIds.set(new Set());
+        this.enabledIds.set(new Set());
+        this.searchText.set('');
+        this.searching.set(false);
+        this.matchCount.set(0);
+        this.lastSearch.set(undefined);
+        this.datasetLabel.set(label);
+        this.dataset.update(n => n + 1);
+    }
+
+    // --- Adding nodes by hand -------------------------------------------------------------
+
+    /** Append a node at the top level. */
+    public addRootNode() {
+        const node = createManualNode(this.nextName(), 0);
+        this.backend.nodes.push(node);
+        this.backend.addNode(node);
+        this.dataset.update(n => n + 1);
+        this.model.reloadTree();
+        this.select(node);
+        this.lastAction.set(`Added ${node.name} at the root`);
+    }
+
+    /**
+     * Append a node under `parent`.
+     *
+     * A parent whose children are still on the server is fetched first: writing into its empty
+     * array would clear the "not loaded yet" state and strand the real children.
+     */
+    public async addChildNode(parent: Node<TreeDataModel>) {
+        const item = parent.item;
+
+        if (this.needsLoad(item)) {
+            await this.loadChildren(item);
+        }
+
+        const node = createManualNode(this.nextName(), parent.depth + 1);
+        const children = item.children ?? (item.children = []);
+        children.push(node);
+        item.isParent = true;
+        this.backend.addNode(node);
+        this.dataset.update(n => n + 1);
+
+        this.model.setExpanded(item, true);
+        this.model.invalidateItem(item);
+        this.select(node);
+        this.lastAction.set(`Added ${node.name} under ${item.name}`);
+    }
+
+    private nextName() {
+        const typed = this.newNodeName().trim();
+        return typed || `new node ${++this.manualSeq}`;
     }
 
     public get isFiltered() {
@@ -218,6 +388,10 @@ export class ServerTreeDemoComponent {
             return;
         }
         siblings.splice(index, 1);
+        // Drop it from the authoritative set too, or server-side search keeps returning a node
+        // the tree can no longer show.
+        this.backend.removeNode(item);
+        this.dataset.update(n => n + 1);
 
         if (this.selected() === item) {
             this.selected.set(undefined);

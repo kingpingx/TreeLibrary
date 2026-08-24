@@ -16,8 +16,8 @@ This is a virtual tree for Angular (requires Angular 18). It has excellent perfo
 
 ## More Info
 
-- [Demo Site](https://oofficestorage.z19.web.core.windows.net/)
-- [Documentation Site](https://oofficestorage.z19.web.core.windows.net/)
+- [Live demo](https://claude.ai/code/artifact/2a360068-1175-40f4-b48c-b569f1f7c2cd) - 100,000 nodes, lazy loading, and a tree builder for your own shapes
+- [Usage guide](../../docs/USAGE.md) - updating nodes, lazy loading, filtering, templating, drag and drop
 
 ## How does it work?
 

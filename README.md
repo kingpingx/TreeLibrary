@@ -8,6 +8,10 @@ The live build is the app in [projects/of-demo/](projects/of-demo/) — 100,000 
 branches, and a side-by-side comparison of client-side vs server-side search. Scroll it, search it,
 expand everything, and watch the row count stay honest.
 
+**Bring your own data.** The demo's **Build a tree** panel generates a tree to whatever shape you
+describe — any number of levels, any number of nodes at each — or you can add nodes one at a time.
+See [Try it with your own data](#try-it-with-your-own-data).
+
 ---
 
 ## What is this?
@@ -76,7 +80,7 @@ This fork is maintained by **[Prabal Pandey](https://github.com/Prabal-I2v)** fo
 | **Editing** | reached into internal node objects | `I2vTreeEditor` — insert / remove / move against *your* arrays through a configured accessor, then reports which parents to invalidate |
 | **Accessibility** | none to speak of | full `role="tree"` / `treeitem` semantics, `aria-level` / `posinset` / `setsize` / `expanded` / `selected` / `checked`, `aria-activedescendant`, type-ahead, Home/End, context-menu key |
 | **Data model** | assumed known properties | fully schemaless — `childAccessor`, `canExpand`, `keyOf`, `getIcon`, `getIconUrl`, `getName`, `getTitle` all configurable; `keyOf` lets state survive a reload into new object identities |
-| **Demo** | a synthetic sample tree | a real API-shaped payload scaled to 100,000 nodes, with genuine lazy loading and a client-vs-server search comparison |
+| **Demo** | a synthetic sample tree | a real API-shaped payload scaled to 100,000 nodes, with genuine lazy loading and a client-vs-server search comparison — plus a [tree builder](#try-it-with-your-own-data) that generates any shape you describe and lets you add nodes by hand |
 | **Tests** | a handful | spec suites for rows, drag, a11y, the tree view, and every model (`check`, `selection`, `query`, `search`, `editor`, `render-area`) |
 
 Naming moved wholesale: `of-` → `i2v-` in package name, selectors, class names, and CSS classes.
@@ -200,6 +204,64 @@ decision in any large tree:
 
 Toggle between them in the live demo and watch the request count and elapsed milliseconds change.
 
+## Try it with your own data
+
+The fixed sample payload is one shape. Real trees are not — some are wide and shallow, some are
+deep and narrow, some have one level with 20,000 siblings in it. The demo's **Build a tree** panel
+exists so you can point the component at *your* geometry before you commit to it.
+
+### Generate by level
+
+A plan is one node count per level, and the panel previews what it costs before it builds anything:
+
+```
+Level 1  [ 3 ]  root nodes  · 3 nodes
+Level 2  [ 5 ]  per parent  · 15 nodes
+Level 3  [ 10 ] per parent  · 150 nodes
+                              = 168 nodes total
+```
+
+- **`+ Level` / `− Level`** — up to 10 levels deep
+- **Any width per level** — up to 5,000 children under a single parent
+- **Lazy-load every Nth branch** — `0` builds a fully client-side tree; `5` keeps every fifth
+  branch on the stub "server" so it arrives as `children: []` with `isParent: true` and only
+  fetches when you open it. This is how you exercise the lazy path against your own shape.
+- **Live preview** — the running total updates as you type, and `Generate tree` stays disabled
+  past 500,000 nodes rather than locking up the tab
+
+Generated nodes are named by their own address — `node 1`, `node 1.2`, `node 1.2.7` — so search,
+type-ahead and the selected-path readout are all legible against them. Each node also gets a
+synthetic IP and a `Level N` type, so both search modes have three fields to match on.
+
+Some shapes worth trying:
+
+| Plan | Produces | What it stresses |
+| --- | --- | --- |
+| `20000` | 20,000 roots, no nesting | pure list virtualization |
+| `2 × 2 × 2 × 2 × 2 × 2 × 2 × 2 × 2 × 2` | 2,046 nodes, 10 deep | indent, keyboard descent, `expandAll` on a deep tree |
+| `50 × 50 × 50` | 127,550 nodes | flatten cost at scale — `Expand all`, then scroll |
+| `10 × 10` with lazy every `3` | 110 nodes, 3 branches fetched on demand | the loading state and the two search modes |
+
+### Add nodes by hand
+
+- **`+ Add root node`** appends at the top level
+- **the `+` button on any row** (hover a row to reveal it) appends a child under that node
+- **Name** sets what the next node is called; leave it blank for `new node 1`, `new node 2`, …
+
+Adding a child to a branch whose children are still on the server fetches them first, so a hand-add
+can't strand data behind a parent that now looks loaded. Both paths register the node with the stub
+backend too, so server-side search finds it — the demo would otherwise have a node sitting in plain
+sight that the "API" swears does not exist.
+
+`Restore sample` puts the original 100,000-node payload back.
+
+### Where it lives
+
+The generator is [tree-builder.ts](projects/of-demo/src/app/demos/tree-builder.ts) — about 190 lines,
+and independent of the library. It emits the same `TreeDataModel` shape as the sample payload, which
+is the point: the row component, both search modes and the lazy-loading path all work against a
+generated tree without a single change. Copy it as a starting point for your own fixtures.
+
 ## Execution
 
 ### Requirements
@@ -276,8 +338,12 @@ public readonly model = new I2vTree<Device>({
 });
 ```
 
-Full API and the `of-tree` → `i2v-tree` migration table:
-**[projects/i2v-tree/readme.md](projects/i2v-tree/readme.md)**.
+### Going further
+
+- **[docs/USAGE.md](docs/USAGE.md)** — the practical guide: how to update nodes, edit structure,
+  lazy-load, filter, template rows, and what to call so the tree notices. Start here.
+- **[projects/i2v-tree/readme.md](projects/i2v-tree/readme.md)** — library readme and the
+  `of-tree` → `i2v-tree` migration table.
 
 ## Keyboard
 

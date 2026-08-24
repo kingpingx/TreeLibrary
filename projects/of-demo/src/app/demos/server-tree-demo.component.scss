@@ -1,3 +1,133 @@
+.builder {
+    border: solid 1px #0002;
+    border-radius: 4px;
+    background: #fff;
+    margin-bottom: 0.75rem;
+    font-size: 0.85rem;
+
+    > summary {
+        cursor: pointer;
+        padding: 0.5rem 0.7rem;
+        font-weight: 600;
+        user-select: none;
+    }
+
+    input[type='number'] {
+        font: inherit;
+        width: 4.5rem;
+        padding: 0.2rem 0.35rem;
+        border: solid 1px #0002;
+        border-radius: 3px;
+    }
+
+    input[type='text'] {
+        font: inherit;
+        width: 10rem;
+        padding: 0.2rem 0.4rem;
+        border: solid 1px #0002;
+        border-radius: 3px;
+    }
+
+    button {
+        font: inherit;
+        padding: 0.25rem 0.6rem;
+        border: solid 1px #0002;
+        border-radius: 4px;
+        background: #fff;
+        cursor: pointer;
+
+        &:hover:not(:disabled) {
+            background: #eef2f7;
+        }
+
+        &:disabled {
+            opacity: 0.45;
+            cursor: default;
+        }
+
+        &.primary {
+            border-color: #2d7ff9;
+            background: #2d7ff9;
+            color: #fff;
+
+            &:hover:not(:disabled) {
+                background: #1d6fe9;
+            }
+        }
+    }
+}
+
+.builder-body {
+    padding: 0 0.7rem 0.7rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.levels {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1rem;
+}
+
+.level {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.level-name {
+    color: #0009;
+}
+
+.level-note {
+    color: #0007;
+    font-size: 0.78rem;
+    white-space: nowrap;
+}
+
+.level-buttons {
+    display: inline-flex;
+    gap: 0.3rem;
+}
+
+.builder-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+
+    .lazy,
+    .manual {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        color: #0009;
+    }
+
+    .hint {
+        color: #0007;
+        font-size: 0.8rem;
+    }
+}
+
+.plan {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+
+    &.over {
+        color: #c0392b;
+        font-weight: 400;
+    }
+}
+
+.dataset {
+    margin: 0;
+    color: #0009;
+    font-size: 0.8rem;
+}
+
 .modes {
     display: inline-flex;
     gap: 0.75rem;
