@@ -1,0 +1,53 @@
+name: Deploy demo to GitHub Pages
+
+on:
+    push:
+        branches: [main]
+    workflow_dispatch:
+
+# Required by actions/deploy-pages: it publishes through an OIDC-authenticated deployment
+# rather than by pushing to a branch, so no gh-pages branch is created or needed.
+permissions:
+    contents: read
+    pages: write
+    id-token: write
+
+# Let a running deploy finish rather than cancelling it — a half-published site is worse than
+# a slightly stale one. Queued runs collapse to the newest.
+concurrency:
+    group: pages
+    cancel-in-progress: false
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 20
+                  cache: npm
+
+            - run: npm ci
+
+            # The site is served from https://<user>.github.io/<repo>/, so every asset URL needs
+            # that prefix. Read from the repository name so renaming the repo cannot break it.
+            - name: Build
+              run: npx ng build of-demo --base-href "/${{ github.event.repository.name }}/"
+
+            - uses: actions/configure-pages@v5
+
+            - uses: actions/upload-pages-artifact@v3
+              with:
+                  path: dist/of-demo/browser
+
+    deploy:
+        needs: build
+        runs-on: ubuntu-latest
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
+        steps:
+            - id: deployment
+              uses: actions/deploy-pages@v4
