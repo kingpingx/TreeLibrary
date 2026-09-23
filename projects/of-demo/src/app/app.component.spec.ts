@@ -31,7 +31,7 @@ describe('i2v-tree demo', () => {
     });
 
     it('renders the tree without rendering the whole data set', () => {
-        expect(demo.totalNodes).toBeGreaterThanOrEqual(100000);
+        expect(demo.totalNodes()).toBeGreaterThanOrEqual(100000);
         expect(rows().length).toBeGreaterThan(0);
         expect(rows().length).toBeLessThan(demo.model.items.length);
     });
@@ -51,8 +51,8 @@ describe('i2v-tree demo', () => {
     });
 
     it('holds some nodes back on the server so the two search modes differ', () => {
-        expect(demo.lazyServerCount).toBeGreaterThan(0);
-        expect(demo.hiddenNodes).toBeGreaterThan(0);
+        expect(demo.lazyServerCount()).toBeGreaterThan(0);
+        expect(demo.hiddenNodes()).toBeGreaterThan(0);
     });
 
     it('expandAll leaves lazy servers collapsed rather than expanded-but-empty', () => {
@@ -87,7 +87,7 @@ describe('i2v-tree demo', () => {
         await settle(fixture, demo);
 
         expect(demo.matchCount()).toBeGreaterThan(0);
-        expect(demo.lastSearch()!.requests).toBe(demo.lazyServerCount);
+        expect(demo.lastSearch()!.requests).toBe(demo.lazyServerCount());
 
         demo.clearSearch();
     });
@@ -101,7 +101,7 @@ describe('i2v-tree demo', () => {
 
         expect(demo.matchCount()).toBeGreaterThan(0);
         // one search request plus at most one fetch, versus one fetch per lazy server
-        expect(demo.lastSearch()!.requests).toBeLessThan(demo.lazyServerCount);
+        expect(demo.lastSearch()!.requests).toBeLessThan(demo.lazyServerCount());
 
         demo.clearSearch();
     });
@@ -288,7 +288,8 @@ describe('i2v-tree demo', () => {
 
         // the row owns the slot but not its contents
         expect(slot.querySelector('app-node-toggle')).not.toBeNull();
-        expect(slot.querySelectorAll('button.row-action').length).toBe(3);
+        // add child, details, copy id, remove
+        expect(slot.querySelectorAll('button.row-action').length).toBe(4);
     });
 
     it('removes a node from the data via a projected action', () => {
@@ -315,6 +316,62 @@ describe('i2v-tree demo', () => {
 
         demo.setEnabled(item, false);
         expect(demo.isEnabled(item)).toBe(false);
+    });
+
+    it('replaces the data set with a tree built to the given plan', async () => {
+        demo.levels.set([2, 3, 4]);
+        expect(demo.plannedNodes()).toBe(2 + 6 + 24);
+        expect(demo.planTooBig()).toBe(false);
+
+        demo.generate();
+        // generate() defers the build off the click, so the busy state is visible.
+        await new Promise(r => setTimeout(r, 0));
+        fixture.detectChanges();
+
+        expect(demo.generating()).toBe(false);
+        expect(demo.totalNodes()).toBe(32);
+        expect(demo.model.items.length).toBe(2);
+        expect(demo.model.items.map(n => n.item.name)).toEqual(['node 1', 'node 2']);
+        // Nothing carried over from the payload it replaced.
+        expect(demo.selected()).toBeUndefined();
+        expect(demo.checkedCount()).toBe(0);
+        expect(demo.isFiltered).toBe(false);
+    });
+
+    it('refuses to build a plan past the node ceiling', () => {
+        demo.levels.set([5000, 5000, 5000]);
+        expect(demo.planTooBig()).toBe(true);
+
+        const before = demo.totalNodes();
+        demo.generate();
+        expect(demo.totalNodes()).toBe(before);
+    });
+
+    it('adds a node at the root by hand', () => {
+        const before = demo.model.items.length;
+        demo.newNodeName.set('by hand');
+
+        demo.addRootNode();
+        fixture.detectChanges();
+
+        expect(demo.model.items.length).toBe(before + 1);
+        expect(demo.model.items[demo.model.items.length - 1].item.name).toBe('by hand');
+        expect(demo.selectedPath()).toBe('/by hand');
+    });
+
+    it('adds a child under an existing node by hand', async () => {
+        const server = demo.model.items.find(n => n.item.name === 'cpu-00001')!;
+        const before = server.item.children!.length;
+        demo.newNodeName.set('child by hand');
+
+        await demo.addChildNode(server);
+        fixture.detectChanges();
+
+        expect(server.item.children!.length).toBe(before + 1);
+        expect(server.item.children![before].name).toBe('child by hand');
+        // The parent is opened, so the node the user just created is actually on screen.
+        expect(demo.model.isExpanded(server.item)).toBe(true);
+        expect(rowText().some(text => text.includes('child by hand'))).toBe(true);
     });
 
     it('cascades a check to loaded descendants', () => {

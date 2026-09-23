@@ -66,6 +66,44 @@ export class TreeBackend {
         return this.allNodes.length;
     }
 
+    /**
+     * Tell the backend about a node the client created, so server-side search can find it.
+     *
+     * Without this, a hand-added node would be visible in the tree and invisible to the "server",
+     * and the two search modes would disagree about a node sitting in plain sight.
+     */
+    public addNode(node: TreeDataModel) {
+        this.allNodes.push(node);
+    }
+
+    /** Drop a node and its whole subtree from the authoritative set, after the client removed it. */
+    public removeNode(node: TreeDataModel) {
+        const doomed = new Set<string>();
+        const walk = (item: TreeDataModel) => {
+            doomed.add(item.id);
+            // A lazy node's children are held here, not on the item, so both sources are walked.
+            for (const child of item.children ?? this.hidden.get(item.id) ?? []) {
+                walk(child);
+            }
+        };
+        walk(node);
+
+        for (let i = this.allNodes.length - 1; i >= 0; i--) {
+            if (doomed.has(this.allNodes[i].id)) {
+                this.allNodes.splice(i, 1);
+            }
+        }
+        for (const id of doomed) {
+            this.hidden.delete(id);
+            this.ownerOf.delete(id);
+        }
+        for (let i = this.lazyServers.length - 1; i >= 0; i--) {
+            if (doomed.has(this.lazyServers[i].id)) {
+                this.lazyServers.splice(i, 1);
+            }
+        }
+    }
+
     /** Counts whole hidden subtrees, not just the direct children of each lazy server. */
     public get hiddenNodes() {
         const count = (list: TreeDataModel[] | null): number =>
