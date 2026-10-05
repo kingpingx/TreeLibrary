@@ -71,7 +71,7 @@ export class VirtualRenderArea {
     private invalidateViewRange() {
         // A zero height would make every derived value NaN or Infinity, which renders as either no
         // rows at all or every row at once. Report an empty window instead and wait for a height.
-        if (this._itemHeight <= 0) {
+         if (this._itemHeight <= 0 || this._viewerHeight <= 0 || this._itemCount <= 0) {
             this._visibleStart = 0;
             this._visibleCount = 0;
             this._topBuffer = 0;

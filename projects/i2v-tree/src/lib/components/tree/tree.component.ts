@@ -18,6 +18,7 @@ import {
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { I2vTree } from './tree.model';
+import {i2vUtilityModule} from '@i2v-systems/i2v-utility';
 import {
     AsyncTreeChildAccessor,
     DefaultIcons,
@@ -41,7 +42,7 @@ const TYPEAHEAD_RESET = 1000;
 @Component({
     selector: 'i2v-tree',
     standalone: true,
-    imports: [NgTemplateOutlet, SetAttrsDirective],
+    imports: [NgTemplateOutlet, SetAttrsDirective, i2vUtilityModule],
     templateUrl: './tree.component.html',
     styleUrl: './tree.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -55,6 +56,7 @@ export class I2vTreeComponent implements AfterContentInit, AfterViewInit, OnDest
     private destroyed = false;
     private viewInitialized = false;
     private initTimeout?: any;
+    private resizeObserver?: ResizeObserver;
 
     private _model: I2vTree<any>;
     private _config: ResolvedTreeConfig<any>;
@@ -500,9 +502,19 @@ export class I2vTreeComponent implements AfterContentInit, AfterViewInit, OnDest
         this.handleDataChange();
         this.invalidateSize();
         this.syncScrollPos();
-        // Containers that settle late (flex, fonts, a parent that sizes after paint) report the
-        // wrong height on the first pass.
-        this.initTimeout = setTimeout(() => this.invalidateSize(), 1);
+        // The tree can be placed inside flex/grid/layout containers whose size settles after
+        // Angular's first render. Observe the actual tree host instead of relying on window resize.
+        if (typeof ResizeObserver !== 'undefined') {
+            this.resizeObserver = new ResizeObserver(() => {
+                if (!this.destroyed) {
+                    this.invalidateSize();
+                }
+            });
+            this.resizeObserver.observe(this.element.nativeElement);
+        }
+
+        // One deferred pass covers browsers where the first ResizeObserver notification is delayed.
+        this.initTimeout = setTimeout(() => this.invalidateSize(), 0);
     }
 
     /**
@@ -512,6 +524,8 @@ export class I2vTreeComponent implements AfterContentInit, AfterViewInit, OnDest
         this.destroyed = true;
         this.dispose();
         clearTimeout(this.initTimeout);
+        this.resizeObserver?.disconnect();
+        this.resizeObserver = undefined;
         clearTimeout(this.filterTextThrottle);
         clearTimeout(this.dragExpand.timeout);
     }
@@ -626,12 +640,8 @@ export class I2vTreeComponent implements AfterContentInit, AfterViewInit, OnDest
         if (this.element.nativeElement) {
             const bounds = this.element.nativeElement.getBoundingClientRect();
             this.renderArea.viewerHeight = bounds.height;
-            if (this.renderArea.itemCount !== this.visibleItems.length) {
-                this.updateVisibleItems();
-                // This component is OnPush and invalidateSize is called imperatively, so nothing
-                // else marks it dirty. Without this the newly computed rows are never rendered.
-                this.refresh();
-            }
+            this.updateVisibleItems();
+            this.refresh();
         }
     }
 
@@ -738,12 +748,28 @@ export class I2vTreeComponent implements AfterContentInit, AfterViewInit, OnDest
 
     /** @ignore */
     public handleRowClick(evt: MouseEvent, item: any) {
-        if (this.isDisabled(item)) {
-            return;
-        }
-        this.model.selectWithModifiers(item, { ctrl: evt.ctrlKey || evt.metaKey, shift: evt.shiftKey });
-        this.rowClick.emit({ event: evt, item });
+    if (this.isDisabled(item)) {
+        return;
     }
+
+    // Existing selection + highlight/focus
+    this.model.selectWithModifiers(item, {
+        ctrl: evt.ctrlKey || evt.metaKey,
+        shift: evt.shiftKey
+    });
+
+    // Expand/collapse when clicking anywhere on an expandable node
+    if (this.model.isExpandable(item)) {
+        this.model.toggle(item);
+
+        this.expandChange.emit({
+            item,
+            expanded: this.model.isExpanded(item)
+        });
+    }
+
+    this.rowClick.emit({ event: evt, item });
+}
 
     /** @ignore */
     public handleRowDblClick(evt: MouseEvent, item: any) {
@@ -867,10 +893,11 @@ export class I2vTreeComponent implements AfterContentInit, AfterViewInit, OnDest
     }
 
     /** @ignore */
-    public getExpanderIcon(item: any) {
-        const iconType = this.model.isExpanded(item) ? 'down' : 'right';
-        return `i2v-expander i2v-expander-${iconType}`;
-    }
+    public getExpanderIcon(item: any): string {
+    return this.model.isExpanded(item)
+        ? 'assets/Outline/chevron-down.svg'
+        : 'assets/Outline/chevron-right.svg';
+}
 
     /**
      * True if the passed item may be dragged. Public so a consumer template can opt into the
@@ -1007,8 +1034,8 @@ export class I2vTreeComponent implements AfterContentInit, AfterViewInit, OnDest
             draggedItem = evt.dataTransfer!.types.includes(`text/plain.${this.ownId}`)
                 ? this.ownDragItem
                 : readExternalData
-                ? this.readExternalDragData(evt)
-                : undefined;
+                    ? this.readExternalDragData(evt)
+                    : undefined;
 
         return {
             draggedItem,
@@ -1050,10 +1077,10 @@ export class I2vTreeComponent implements AfterContentInit, AfterViewInit, OnDest
                 !itemAtIndex || !itemAtIndex.parent
                     ? undefined
                     : area === 'before'
-                    ? itemAtIndex.index
-                    : area === 'after'
-                    ? itemAtIndex.index + 1
-                    : undefined,
+                        ? itemAtIndex.index
+                        : area === 'after'
+                            ? itemAtIndex.index + 1
+                            : undefined,
             item = !itemAtIndex ? undefined : area === 'on' ? itemAtIndex : itemAtIndex.parent;
 
         return { flatIndex, itemIndex, item, area };
