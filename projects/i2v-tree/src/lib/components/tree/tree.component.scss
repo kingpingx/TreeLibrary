@@ -4,6 +4,11 @@
     height: 100%;
     overflow: auto;
     position: relative;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+    // font-family: 'proxima-nova';
 }
 
 .i2v-container,
@@ -13,13 +18,7 @@
 
 .i2v-container {
     min-width: 100%;
-}
-
-// The built-in rows shrink-wrap so a vertical scrollbar cannot provoke a horizontal one.
-// Projected rows keep min-width:100% -- they rely on it for full-width hover and selection
-// backgrounds, and for pushing trailing content over with margin-left:auto.
-:host(.i2v-default-rows) .i2v-container {
-    min-width: auto;
+    width: 100%;
 }
 
 .i2v-bottom-space {
@@ -27,99 +26,221 @@
     height: 1px;
 }
 
+/*
+ * IMPORTANT:
+ * Do not shrink-wrap the default rows.
+ * The complete node row must occupy the full available tree width so
+ * hover/focus/selection backgrounds span the entire tree.
+ */
+:host(.i2v-default-rows) .i2v-container {
+    min-width: 100%;
+    width: 100%;
+}
+
 .i2v-node {
     display: flex;
     white-space: nowrap;
     align-items: center;
+
+    /*
+     * Full-width row. This is what makes hover/focus/selection apply
+     * across the complete tree width instead of only around the text.
+     */
+    width: 100%;
+    box-sizing: border-box;
+
+    /*
+     * Keep the existing row height supplied by the component.
+     */
+    border: 1px solid transparent;
+    outline: none;
+
+    /*
+     * Do not let the row's children determine its width.
+     */
+    min-width: 100%;
 }
 
+/*
+ * Full-row hover.
+ */
+.i2v-node:hover {
+    background: #e4f2ff;
+}
+
+/*
+ * Full-row keyboard/focus state.
+ */
+.i2v-node:focus,
+.i2v-node:focus-visible,
+.i2v-node:focus-within {
+    background: #e4f2ff;
+    border-color: #1689e5;
+}
+
+/*
+ * Full-row selected state.
+ */
+.i2v-node[aria-selected='true'] {
+    background: #e4f2ff;
+    border-color: #1689e5;
+}
+
+/*
+ * Selected + hover/focus.
+ */
+.i2v-node[aria-selected='true']:hover,
+.i2v-node[aria-selected='true']:focus,
+.i2v-node[aria-selected='true']:focus-visible,
+.i2v-node[aria-selected='true']:focus-within {
+    background: #dceeff;
+    border-color: #1689e5;
+}
+
+/*
+ * Expander is an actual asset rendered by tree.component.html:
+ *
+ * assets/Outline/chevron-right.svg
+ * assets/Outline/chevron-down.svg
+ *
+ * Keep the asset at 16x16 and tint the existing asset toward the
+ * muted grey used by the reference UI.
+ */
 .i2v-expander {
-    margin-left: -1.5rem;
-    width: 1.5rem;
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+
+    display: block;
+    object-fit: contain;
+
     cursor: pointer;
-    display: block;
-    height: 1rem;
-    background-size: contain;
-    background-position-x: 50%;
-    background-repeat: no-repeat;
 
-    &.i2v-expander-right {
-        background-image: url('data:image/svg+xml;utf8,<svg width="1792" height="1792" viewBox="0 0 1792 1792" xmlns="http://www.w3.org/2000/svg"><path d="M1152 896q0 26-19 45l-448 448q-19 19-45 19t-45-19-19-45v-896q0-26 19-45t45-19 45 19l448 448q19 19 19 45z"/></svg>');
-    }
-    &.i2v-expander-down {
-        background-image: url('data:image/svg+xml;utf8,<svg width="1792" height="1792" viewBox="0 0 1792 1792" xmlns="http://www.w3.org/2000/svg"><path d="M1408 704q0 26-19 45l-448 448q-19 19-45 19t-45-19l-448-448q-19-19-19-45t19-45 45-19h896q26 0 45 19t19 45z"/></svg>');
-    }
+    /*
+     * The expander sits in the 16px indentation column.
+     */
+    margin-left: -16px;
+    margin-right: 5px;
+
+    /*
+     * The supplied SVG is dark by default. This keeps its shape but
+     * renders it as the muted grey chevron used by the reference UI.
+     */
+    filter:
+        brightness(0) saturate(100%) invert(47%) sepia(10%) saturate(650%) hue-rotate(178deg) brightness(91%) contrast(88%);
 }
 
-.i2v-icon {
-    width: 1rem;
-    height: 1rem;
-    display: block;
-    background-size: contain;
-    background-position: 50%;
-
-    &.i2v-folder {
-        background-image: url('data:image/svg+xml;utf8,<svg width="1792" height="1792" viewBox="0 0 1792 1792" xmlns="http://www.w3.org/2000/svg"><path d="M1600 1312v-704q0-40-28-68t-68-28h-704q-40 0-68-28t-28-68v-64q0-40-28-68t-68-28h-320q-40 0-68 28t-28 68v960q0 40 28 68t68 28h1216q40 0 68-28t28-68zm128-704v704q0 92-66 158t-158 66h-1216q-92 0-158-66t-66-158v-960q0-92 66-158t158-66h320q92 0 158 66t66 158v32h672q92 0 158 66t66 158z"/></svg>');
-    }
-    &.i2v-folder-open {
-        background-image: url('data:image/svg+xml;utf8,<svg width="2048" height="1792" viewBox="0 0 2048 1792" xmlns="http://www.w3.org/2000/svg"><path d="M1845 931q0-35-53-35h-1088q-40 0-85.5 21.5t-71.5 52.5l-294 363q-18 24-18 40 0 35 53 35h1088q40 0 86-22t71-53l294-363q18-22 18-39zm-1141-163h768v-160q0-40-28-68t-68-28h-576q-40 0-68-28t-28-68v-64q0-40-28-68t-68-28h-320q-40 0-68 28t-28 68v853l256-315q44-53 116-87.5t140-34.5zm1269 163q0 62-46 120l-295 363q-43 53-116 87.5t-140 34.5h-1088q-92 0-158-66t-66-158v-960q0-92 66-158t158-66h320q92 0 158 66t66 158v32h544q92 0 158 66t66 158v160h192q54 0 99 24.5t67 70.5q15 32 15 68z"/></svg>');
-    }
-    &.i2v-file-text {
-        background-image: url('data:image/svg+xml;utf8,<svg width="1792" height="1792" viewBox="0 0 1792 1792" xmlns="http://www.w3.org/2000/svg"><path d="M1596 380q28 28 48 76t20 88v1152q0 40-28 68t-68 28h-1344q-40 0-68-28t-28-68v-1600q0-40 28-68t68-28h896q40 0 88 20t76 48zm-444-244v376h376q-10-29-22-41l-313-313q-12-12-41-22zm384 1528v-1024h-416q-40 0-68-28t-28-68v-416h-768v1536h1280zm-1024-864q0-14 9-23t23-9h704q14 0 23 9t9 23v64q0 14-9 23t-23 9h-704q-14 0-23-9t-9-23v-64zm736 224q14 0 23 9t9 23v64q0 14-9 23t-23 9h-704q-14 0-23-9t-9-23v-64q0-14 9-23t23-9h704zm0 256q14 0 23 9t9 23v64q0 14-9 23t-23 9h-704q-14 0-23-9t-9-23v-64q0-14 9-23t23-9h704z"/></svg>');
-    }
-}
-
+/*
+ * Node content.
+ */
 .i2v-node-title {
     cursor: pointer;
     display: flex;
     align-items: center;
-    flex: 1 1 100%;
+
+    /*
+     * Reference spacing between icon and label.
+     */
+    gap: 8px;
+    color: #4A5673;
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 34px;
+
 }
 
+/*
+ * Application/CSS icons.
+ */
+.i2v-icon {
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+
+    display: block;
+    background-size: contain;
+    background-position: 50%;
+    background-repeat: no-repeat;
+
+    flex: 0 0 16px;
+
+    &.i2v-folder {
+        background-image: url('data:image/svg+xml;utf8,<svg width="1792" height="1792" viewBox="0 0 1792 1792" xmlns="http://www.w3.org/2000/svg"><path d="M1600 1312v-704q0-40-28-68t-68-28h-704q-40 0-68-28t-28-68v-64q0-40-28-68t-68-28h-320q-40 0-68 28t-28 68v960q0 40 28 68t68 28h1216q40 0 68-28t28-68zm128-704v704q0 92-66 158t-158 66h-1216q-92 0-158-66t-66-158v-960q0-92 66-158t158-66h320q92 0 158 66t66 158v32h672q92 0 158 66t66 158z"/></svg>');
+    }
+
+    &.i2v-folder-open {
+        background-image: url('data:image/svg+xml;utf8,<svg width="2048" height="1792" viewBox="0 0 2048 1792" xmlns="http://www.w3.org/2000/svg"><path d="M1845 931q0-35-53-35h-1088q-40 0-85.5 21.5t-71.5 52.5l-294 363q-18 24-18 40 0 35 53 35h1088q40 0 86-22t71-53l294-363q18-22 18-39zm-1141-163h768v-160q0-40-28-68t-68-28h-576q-40 0-68-28t-28-68v-64q0-40-28-68t-68-28h-320q-40 0-68 28t-28 68v853l256-315q44-53 116-87.5t140-34.5zm1269 163q0 62-46 120l-295 363q-43 53-116 87.5t-140 34.5h-1088q-92 0-158-66t-66-158v-960q0-92 66-158t158-66h320q92 0 158 66t66 158v32h544q92 0 158 66t66 158v160h192q54 0 99 24.5t67 70.5q15 32 15 68z"/></svg>');
+    }
+
+    &.i2v-file-text {
+        background-image: url('data:image/svg+xml;utf8,<svg width="1792" height="1792" viewBox="0 0 1792 1792" xmlns="http://www.w3.org/2000/svg"><path d="M1596 380q28 28 48 76t20 88v1152q0 40-28 68t-68 28h-1344q-40 0-68-28t-28-68v-1600q0-40 28-68t68-28h896q40 0 88 20t76 48zm-444-244v376h376q-10-29-22-41l-313-313q-12-12-41-22zm384 1528v-1024h-416q-40 0-68-28t-28-68v-416h-768v1536h1280zm-1024-864q0-14 9-23t23-9h704q14 0 23 9t9 23v64q0 14-9 23t-23 9h-704q-14 0-23-9t-9-23v-64zm736 224q14 0 23 9t9 23v64q0 14-9 23t-23 9h-704q-14 0-23-9t-23-9v-64q0-14 9-23t23-9h704zm0 256q14 0 23 9t9 23v64q0 14-9 23t-23 9h-704q-14 0-23-9t-23-9v-64q0-14 9-23t23-23h704z"/></svg>');
+    }
+}
+
+/*
+ * URL-based application icons.
+ */
+.i2v-icon-img {
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    margin-right: 5px;
+    display: block;
+    object-fit: contain;
+
+    flex: 0 0 auto;
+}
+
+/*
+ * Label.
+ * Hover/selection is intentionally NOT placed here because the complete
+ * .i2v-node owns the visual state.
+ */
 .i2v-label {
     white-space: nowrap;
-    padding: 0 0.25rem;
+    padding: 0;
     line-height: 1.5rem;
-    &:hover {
-        background: #c9def5;
-    }
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    background: transparent;
+
+    &:hover,
     &.i2v-selected {
-        background: #88afd7;
+        background: transparent;
     }
 }
 
 .i2v-highlight {
-    outline: solid 1px orange;
-}
-
-// Image-path icons, for data carrying icon URLs rather than CSS classes.
-.i2v-icon-img {
-    width: 1rem;
-    height: 1rem;
-    display: block;
-    object-fit: contain;
-    flex: 0 0 auto;
+    outline: none;
 }
 
 .i2v-checkbox {
-    margin: 0 0.25rem 0 0;
+    margin: 0 8px 0 5px;
     flex: 0 0 auto;
     cursor: pointer;
 }
 
-// Spans of a label matching the active filter. Rendered as real elements rather than injected
-// markup, so a search term can never carry HTML into the row.
-.i2v-match {
-    background: #ffe08a;
-    font-weight: 600;
-}
 
 .i2v-disabled {
     opacity: 0.5;
 
     .i2v-node-title,
-    .i2v-checkbox {
+    .i2v-checkbox,
+    .i2v-expander {
         cursor: default;
+    }
+
+    &:hover {
+        background: transparent;
+    }
+
+    &:focus,
+    &:focus-visible,
+    &:focus-within {
+        background: transparent;
+        border-color: transparent;
     }
 
     .i2v-label:hover {
@@ -132,10 +253,9 @@
     background: #c9def5;
     left: 0;
     width: 100%;
-    // Starts collapsed so a drag that never resolves to a drop target cannot flash a full-height
-    // band, and transparent to hit-testing so it never steals the dragover from the rows.
     height: 0;
     pointer-events: none;
+
     &.i2v-dragoverlay-between:before {
         content: '';
         height: 2px;

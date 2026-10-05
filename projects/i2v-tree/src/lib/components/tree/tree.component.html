@@ -18,12 +18,11 @@
         would destroy and recreate every row on every scroll (NG0956).
     -->
     @for (item of visibleItems; track $index) {
-        <!--
+    <!--
             The context keys match NgForOf's, so templates written against the old [ngForTemplate]
             binding keep working. absoluteIndex and state are additions.
         -->
-        <ng-container
-            *ngTemplateOutlet="
+    <ng-container *ngTemplateOutlet="
                 template ?? defaultRow;
                 context: {
                     $implicit: item,
@@ -36,8 +35,7 @@
                     odd: $odd,
                     state: itemState
                 }
-            "
-        ></ng-container>
+            "></ng-container>
     }
 </div>
 
@@ -49,82 +47,56 @@
     the top level - a reference declared inside @for would not be in scope for the outlet above.
 -->
 <ng-template #defaultRow let-node let-index="index" let-absoluteIndex="absoluteIndex">
-    <div
-        class="i2v-node"
-        role="treeitem"
-        [id]="getRowId(node.item)"
-        [attr.aria-level]="node.depth + 1"
-        [attr.aria-posinset]="getPosInSet(node)"
-        [attr.aria-setsize]="getSetSize(node)"
-        [attr.aria-expanded]="getAriaExpanded(node.item)"
-        [attr.aria-selected]="model.isSelected(node.item)"
+    <div class="i2v-node" role="treeitem" [id]="getRowId(node.item)" [attr.aria-level]="node.depth + 1"
+        [attr.aria-posinset]="getPosInSet(node)" [attr.aria-setsize]="getSetSize(node)"
+        [attr.aria-expanded]="getAriaExpanded(node.item)" [attr.aria-selected]="model.isSelected(node.item)"
         [attr.aria-disabled]="isDisabled(node.item) ? true : null"
         [attr.aria-checked]="config.checkboxes && canCheck(node.item) ? isChecked(node.item) : null"
-        [attr.title]="getTitle(node.item)"
-        [class.i2v-disabled]="isDisabled(node.item)"
-        [style.paddingLeft.rem]="1.5 * (node.depth + 1)"
-        [style.height.px]="itemHeight"
-        [i2vSetAttrs]="getDomNodeAttr(node)"
-        (contextmenu)="handleContextMenu($event, node.item)"
-    >
+        [attr.title]="getTitle(node.item)" [class.i2v-disabled]="isDisabled(node.item)"
+        [style.paddingLeft.rem]="1.875 + node.depth" [style.height.px]="itemHeight" [i2vSetAttrs]="getDomNodeAttr(node)"
+        (contextmenu)="handleContextMenu($event, node.item)">
         @if (prefixTemplate) {
-            <ng-container *ngTemplateOutlet="prefixTemplate; context: rowContext(node, index, absoluteIndex)"></ng-container>
+        <ng-container
+            *ngTemplateOutlet="prefixTemplate; context: rowContext(node, index, absoluteIndex)"></ng-container>
         }
 
         @if (model.isExpandable(node.item) && !isFiltered) {
-            <i (click)="toggleExpand(node.item)" [class]="getExpanderIcon(node.item)"></i>
+        <lib-svg class="i2v-expander" [path]="getExpanderIcon(node.item)" [size]="'16px'" aria-hidden="true"
+            (click)="toggleExpand(node.item)">
+        </lib-svg>
         }
 
         @if (config.checkboxes && canCheck(node.item)) {
-            <!--
+        <!--
                 A real input, so it is reachable by assistive technology and reflects indeterminate
                 as a property - the attribute form does not exist for checkboxes.
             -->
-            <input
-                type="checkbox"
-                class="i2v-checkbox"
-                tabindex="-1"
-                [checked]="isChecked(node.item)"
-                [indeterminate]="isIndeterminate(node.item)"
-                [disabled]="isDisabled(node.item)"
-                (click)="handleCheckboxClick($event, node.item)"
-            />
+        <input type="checkbox" class="i2v-checkbox" tabindex="-1" [checked]="isChecked(node.item)"
+            [indeterminate]="isIndeterminate(node.item)" [disabled]="isDisabled(node.item)"
+            (click)="handleCheckboxClick($event, node.item)" />
         }
 
-        <div
-            class="i2v-node-title"
-            [draggable]="canDrag(node.item)"
-            (dragstart)="handleDragstart($event, node)"
-            (click)="handleRowClick($event, node.item)"
-            (dblclick)="handleRowDblClick($event, node.item)"
-        >
+        <div class="i2v-node-title" [draggable]="canDrag(node.item)" (dragstart)="handleDragstart($event, node)"
+            (click)="handleRowClick($event, node.item)" (dblclick)="handleRowDblClick($event, node.item)">
             @if (getIconUrl(node); as iconUrl) {
-                <img class="i2v-icon-img" [src]="iconUrl" alt="" />
-            } @else {
-                <i [class]="getIcon(node)" (click)="iconClick.emit({ event: $event, item: node.item })"></i>
+            <img class="i2v-icon-img" [src]="iconUrl" alt="" />
             }
-            <div
-                class="i2v-label"
-                (click)="labelClick.emit({ event: $event, item: node.item })"
+            <div class="i2v-label" (click)="labelClick.emit({ event: $event, item: node.item })"
                 [class.i2v-highlight]="model.isHighlighted(node.item)"
-                [class.i2v-selected]="model.isSelected(node.item)"
-            >
+                [class.i2v-selected]="model.isSelected(node.item)">
                 <!--
                     Rendered as segments rather than interpolated markup, so a search term can never
                     inject HTML into a label.
                 -->
                 @for (segment of getNameSegments(node.item); track $index) {
-                    @if (segment.match) {
-                        <span class="i2v-match">{{ segment.text }}</span>
-                    } @else {
-                        {{ segment.text }}
-                    }
+                {{ segment.text }}
                 }
             </div>
         </div>
 
         @if (suffixTemplate) {
-            <ng-container *ngTemplateOutlet="suffixTemplate; context: rowContext(node, index, absoluteIndex)"></ng-container>
+        <ng-container
+            *ngTemplateOutlet="suffixTemplate; context: rowContext(node, index, absoluteIndex)"></ng-container>
         }
     </div>
 </ng-template>
