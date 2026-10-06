@@ -916,7 +916,10 @@ export class I2vTreeComponent implements AfterContentInit, AfterViewInit, OnDest
         if (this.canDrag(node.item)) {
             if (evt.dataTransfer) {
                 evt.dataTransfer.dropEffect = 'move';
-                evt.dataTransfer.setData(TREE_ITEM_MIME, this.getDragData(node.item));
+                const dragData = this.getDragData(node.item);
+                evt.dataTransfer.setData(TREE_ITEM_MIME, dragData);
+                // External native drop targets must not depend on a library-private MIME type.
+                evt.dataTransfer.setData('text/plain', dragData);
                 evt.dataTransfer.setData(`text/plain.${this.ownId}`, '{}');
             }
         }
