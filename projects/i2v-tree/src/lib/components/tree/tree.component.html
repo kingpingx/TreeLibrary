@@ -95,8 +95,10 @@
         </div>
 
         @if (suffixTemplate) {
+        <div class="i2v-node-suffix">
         <ng-container
             *ngTemplateOutlet="suffixTemplate; context: rowContext(node, index, absoluteIndex)"></ng-container>
+        </div>
         }
     </div>
 </ng-template>
