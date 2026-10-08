@@ -65,7 +65,7 @@
  * Full-row hover.
  */
 .i2v-node:hover {
-    background: #e4f2ff;
+    background: #e5f6ff;
 }
 
 /*
@@ -74,7 +74,7 @@
 .i2v-node:focus,
 .i2v-node:focus-visible,
 .i2v-node:focus-within {
-    background: #e4f2ff;
+    background: #e5f6ff;
     border-color: #1689e5;
 }
 
@@ -82,7 +82,7 @@
  * Full-row selected state.
  */
 .i2v-node[aria-selected='true'] {
-    background: #e4f2ff;
+    background: #e5f6ff;
     border-color: #1689e5;
 }
 
@@ -93,7 +93,7 @@
 .i2v-node[aria-selected='true']:focus,
 .i2v-node[aria-selected='true']:focus-visible,
 .i2v-node[aria-selected='true']:focus-within {
-    background: #dceeff;
+    background: #e5f6ff;
     border-color: #1689e5;
 }
 
@@ -205,10 +205,14 @@
     text-overflow: ellipsis;
 
     background: transparent;
+    color:#5f6f94;
 
-    &:hover,
+    &:hover{
+       color:#4b556c; 
+    }
     &.i2v-selected {
         background: transparent;
+        color:#424f6f;
     }
 }
 
