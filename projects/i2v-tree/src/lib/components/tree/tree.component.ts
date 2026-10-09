@@ -574,22 +574,146 @@ export class I2vTreeComponent implements AfterContentInit, AfterViewInit, OnDest
             return;
         }
 
-        if (evt.key === 'Home' || evt.key === 'End' || evt.key.startsWith('Arrow')) {
-            const direction = evt.key.startsWith('Arrow') ? evt.key.replace('Arrow', '') : evt.key,
-                nextHighlightedIndex = this.model.navigate(direction);
+       if (
+    evt.key === 'Home' ||
+    evt.key === 'End' ||
+    evt.key.startsWith('Arrow')
+) {
+    const direction = evt.key.startsWith('Arrow')
+        ? evt.key.replace('Arrow', '')
+        : evt.key;
 
-            if (nextHighlightedIndex !== undefined) {
-                this.scrollToIndex(nextHighlightedIndex);
-                this.activeItemChange.emit(this.model.getHighlightedItem());
-            }
-            evt.preventDefault();
-            return;
+    const items = this.model.items;
+    const current = this.model.getHighlightedItem();
+
+    /*
+     * Arrow Up / Down:
+     * Navigate only between top-level parent nodes.
+     * A parent without children is also included.
+     */
+    if (direction === 'Up' || direction === 'Down') {
+        const currentIndex = current
+            ? items.findIndex(node => node.item === current)
+            : -1;
+
+        const step = direction === 'Down' ? 1 : -1;
+        let nextIndex = currentIndex + step;
+
+        while (
+            nextIndex >= 0 &&
+            nextIndex < items.length &&
+            !items[nextIndex].parent?.isRoot
+        ) {
+            nextIndex += step;
         }
 
-        this.handleTypeahead(evt);
+        if (
+            nextIndex >= 0 &&
+            nextIndex < items.length
+        ) {
+            const nextItem = items[nextIndex].item;
+
+            this.model.highlightByIndex(nextIndex);
+
+            this.model.selectWithModifiers(nextItem, {
+                ctrl: false,
+                shift: false
+            });
+
+            this.scrollToIndex(nextIndex);
+            this.activeItemChange.emit(nextItem);
+        }
+
+        evt.preventDefault();
+        return;
     }
 
-    /**
+    /*
+     * Arrow Right:
+     * Move downward through the visible tree.
+     *
+     * Parent -> child -> child -> next parent -> child ...
+     */
+    if (direction === 'Right') {
+    const currentIndex = current
+        ? items.findIndex(node => node.item === current)
+        : -1;
+
+    if (currentIndex >= 0 && currentIndex + 1 < items.length) {
+        const nextIndex = currentIndex + 1;
+        const nextItem = items[nextIndex].item;
+
+        this.model.highlightByIndex(nextIndex);
+
+        this.model.selectWithModifiers(nextItem, {
+            ctrl: false,
+            shift: false
+        });
+
+        this.scrollToIndex(nextIndex);
+        this.activeItemChange.emit(nextItem);
+    }
+
+    evt.preventDefault();
+    return;
+}
+
+    /*
+     * Arrow Left:
+     * Move upward through the visible tree.
+     *
+     * child -> previous child -> parent -> previous parent ...
+     */
+    if (direction === 'Left') {
+        const currentIndex = current
+            ? items.findIndex(node => node.item === current)
+            : -1;
+
+        if (currentIndex > 0) {
+            const nextIndex = currentIndex - 1;
+            const nextItem = items[nextIndex].item;
+
+            this.model.highlightByIndex(nextIndex);
+
+            this.model.selectWithModifiers(nextItem, {
+                ctrl: false,
+                shift: false
+            });
+
+            this.scrollToIndex(nextIndex);
+            this.activeItemChange.emit(nextItem);
+        }
+
+        evt.preventDefault();
+        return;
+    }
+
+    /*
+     * Home / End:
+     * Keep the existing model behavior.
+     */
+    const nextHighlightedIndex = this.model.navigate(direction);
+
+    if (nextHighlightedIndex !== undefined) {
+        const nextItem = this.model.getHighlightedItem();
+
+        if (nextItem !== undefined) {
+            this.model.selectWithModifiers(nextItem, {
+                ctrl: false,
+                shift: false
+            });
+
+            this.scrollToIndex(nextHighlightedIndex);
+            this.activeItemChange.emit(nextItem);
+        }
+    }
+
+    evt.preventDefault();
+    return;
+}
+
+this.handleTypeahead(evt);
+}    /**
      * Jump to a row by typing its first letters.
      *
      * Only single printable characters with no modifier qualify, so shortcuts such as ctrl+A are
